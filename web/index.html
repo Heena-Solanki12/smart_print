@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smart Print</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: Arial; background:#f2f2f2; padding:20px; }
+        .box { background:white; padding:20px; border-radius:10px; }
+        input, select, button {
+            width:100%; padding:10px; margin:10px 0;
+        }
+        button { background:green; color:white; border:none; font-size:16px; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2>Smart Print Kiosk</h2>
+
+    <form id="printForm">
+        <input type="file" name="pdf" required>
+
+        <select name="bw">
+            <option value="bw">Black & White</option>
+            <option value="color">Color</option>
+        </select>
+
+        <select name="side">
+            <option value="single">Single Side</option>
+            <option value="double">Double Side</option>
+        </select>
+
+        <input type="number" name="copies" value="1" min="1">
+
+        <button type="submit">Submit</button>
+    </form>
+
+    <h3 id="amount"></h3>
+</div>
+
+<script src="/script.js"></script>
+</body>
+</html>
