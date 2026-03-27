@@ -1,41 +1,61 @@
-from flask import Flask, request, jsonify, send_from_directory
-import os, json
+from flask import Flask, render_template, request, jsonify
+import qrcode, socket, os, json, time
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="../templates", static_folder="../static")
 
-UPLOAD_FOLDER = "uploads"
+UPLOAD_FOLDER = "../backend/uploads"
 JOB_FILE = "jobs.json"
+QR_PATH = "../static/qr.png"
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-if not os.path.exists(JOB_FILE):
-    with open(JOB_FILE, "w") as f:
-        json.dump({}, f)
+def get_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(("8.8.8.8",80))
+    ip = s.getsockname()[0]
+    s.close()
+    return ip
 
+# Home Screen
 @app.route("/")
 def home():
-    return send_from_directory("../web", "index.html")
+    return render_template("home.html")
 
-@app.route("/script.js")
-def script():
-    return send_from_directory("../web", "script.js")
+# Generate QR
+@app.route("/generate_qr")
+def generate_qr():
+    ip = get_ip()
+    url = f"http://{ip}:5000/form"
 
-@app.route("/upload", methods=["POST"])
-def upload():
+    img = qrcode.make(url)
+    img.save(QR_PATH)
+
+    return render_template("qr.html")
+
+# Form page
+@app.route("/form")
+def form():
+    return render_template("form.html")
+
+# Submit form
+@app.route("/submit", methods=["POST"])
+def submit():
+
     file = request.files['pdf']
-    bw = request.form['bw']
-    side = request.form['side']
-    copies = int(request.form['copies'])
+    bw = request.form.get("bw")
+    side = request.form.get("side")
+    copies = int(request.form.get("copies"))
 
-    filepath = os.path.join(UPLOAD_FOLDER, file.filename)
+    filename = str(int(time.time())) + "_" + file.filename
+    filepath = os.path.join(UPLOAD_FOLDER, filename)
     file.save(filepath)
 
-    pages = 1
-    if side == "double":
-        pages = 0.5
+    # price logic
+    price = 2 if bw=="bw" else 5
+    if side=="double":
+        price *= 0.8
 
-    base = 2 if bw == "bw" else 5
-    amount = int(base * copies / pages)
+    amount = int(price * copies)
 
     job = {
         "file": filepath,
@@ -46,22 +66,26 @@ def upload():
         "status": "pending"
     }
 
-    with open(JOB_FILE, "w") as f:
-        json.dump(job, f)
+    with open(JOB_FILE,"w") as f:
+        json.dump(job,f)
 
-    return jsonify({"status": "success", "amount": amount})
+    return jsonify({"amount":amount})
 
+# Get job
 @app.route("/get_job")
 def get_job():
-    with open(JOB_FILE) as f:
-        job = json.load(f)
-    return jsonify(job)
+    try:
+        with open(JOB_FILE) as f:
+            return jsonify(json.load(f))
+    except:
+        return jsonify({})
 
+# Clear job
 @app.route("/clear_job")
 def clear_job():
-    with open(JOB_FILE, "w") as f:
-        json.dump({}, f)
-    return jsonify({"status": "cleared"})
+    with open(JOB_FILE,"w") as f:
+        json.dump({},f)
+    return jsonify({"status":"cleared"})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host="0.0.0.0", port=5000)
